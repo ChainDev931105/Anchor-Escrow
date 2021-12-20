@@ -82,6 +82,7 @@ pub mod anchor_escrow {
 pub struct Initialize {}
 
 #[derive(Accounts)]
+#[instruction(x_in_amount: u64)]
 pub struct EscrowInit<'info> {
     #[account(signer)]
     pub initializer: AccountInfo<'info>,
@@ -98,6 +99,10 @@ pub struct EscrowInit<'info> {
 pub struct EscrowCancel<'info> {
     pub initializer: AccountInfo<'info>,
     pub escrow_account: Account<'info, EscrowAccount>,
+    #[account(mut)]
+    pub initializer_x_account: Account<'info, TokenAccount>,
+    pub pda_account: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -108,6 +113,10 @@ pub struct EscrowExchange<'info> {
     pub taker_x_account: Account<'info, TokenAccount>,
     #[account(mut)]
     pub taker_y_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub initializer_x_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub initializer_y_account: Account<'info, TokenAccount>,
     pub escrow_account: Account<'info, EscrowAccount>,
 }
 
@@ -126,16 +135,34 @@ impl EscrowAccount {
 
 impl<'info> EscrowInit<'info> {
     fn into_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
+        let cpi_accounts = SetAuthority {
+            account_or_mint: self.initializer_x_account.to_account_info().clone(),
+            current_authority: self.initializer.clone(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        CpiContext::new(cpi_program, cpi_accounts);
     }
 }
 
 impl<'info> EscrowCancel<'info> {
     fn into_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
+        let cpi_accounts = SetAuthority {
+            account_or_mint: self.initializer_x_account.to_account_info().clone(),
+            current_authority: self.pda_account.clone(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        CpiContext::new(cpi_program, cpi_accounts);
     }
 }
 
 impl<'info> EscrowExchange<'info> {
     fn into_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
+        let cpi_accounts = SetAuthority {
+            account_or_mint: self.initializer_x_account.to_account_info().clone(),
+            current_authority: self.pda_account.clone(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        CpiContext::new(cpi_program, cpi_accounts);
     }
 
     fn into_transfer_to_taker_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
