@@ -4,7 +4,6 @@ use anchor_spl::token::{self, SetAuthority, Token, TokenAccount, Transfer};
 
 declare_id!("67kJ2ZuNXM78kx1FrwJkLR4vKWREDCHLQDJjWKWQRHRd");
 
-
 #[program]
 pub mod anchor_escrow {
     use super::*;
@@ -86,7 +85,10 @@ pub struct Initialize {}
 pub struct EscrowInit<'info> {
     #[account(signer)]
     pub initializer: AccountInfo<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = (initializer_x_account.amount >= x_in_amount) // check if initializer has enough amount of token x
+    )]
     pub initializer_x_account: Account<'info, TokenAccount>,
     #[account(mut)]
     pub initializer_y_account: Account<'info, TokenAccount>,
@@ -99,10 +101,16 @@ pub struct EscrowInit<'info> {
 #[derive(Accounts)]
 pub struct EscrowCancel<'info> {
     pub initializer: AccountInfo<'info>,
-    pub escrow_account: Account<'info, EscrowAccount>,
     #[account(mut)]
     pub initializer_x_account: Account<'info, TokenAccount>,
     pub pda_account: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = (escrow_account.initializer_key == *initializer.key), // check if escrow_account is matched
+        constraint = (escrow_account.initializer_x_account == *initializer_x_account.to_account_info().key), // check if initializer's account is matched
+        close = initializer
+    )]
+    pub escrow_account: Account<'info, EscrowAccount>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -118,6 +126,16 @@ pub struct EscrowExchange<'info> {
     pub initializer_x_account: Account<'info, TokenAccount>,
     #[account(mut)]
     pub initializer_y_account: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub initializer_main_account: AccountInfo<'info>,
+    #[account(
+        mut,
+        constraint = (escrow_account.y_out_amount <= taker_y_account.amount), // check if taker has enough amount of token y
+        constraint = (escrow_account.initializer_x_account == *initializer_x_account.to_account_info().key), // check if x_account is correct
+        constraint = (escrow_account.initializer_y_account == *initializer_y_account.to_account_info().key), // check if y_account is correct
+        constraint = (escrow_account.initializer_key == *initializer_main_account.key), // check if initializer is correct
+        close = initializer_main_account
+    )]
     pub escrow_account: Account<'info, EscrowAccount>,
     pub pda_account: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
@@ -191,5 +209,3 @@ impl<'info> EscrowExchange<'info> {
         CpiContext::new(cpi_program, cpi_accounts)
     }
 }
-
-
