@@ -37,13 +37,13 @@ pub mod anchor_escrow {
     pub fn escrow_cancel(
         ctx: Context<EscrowCancel>
     ) -> ProgramResult {
-        let (pda, _bump_seed) = Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
+        let (_pda, bump_seed) = Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
         let seeds = &[&ESCROW_PDA_SEED[..], &[bump_seed]];
 
         token::set_authority(
             ctx.accounts.into_set_authority_context().with_signer(&[&seeds[..]]),
             AuthorityType::AccountOwner,
-            Some(ctx.account.escrow_account.initializer_key),
+            Some(ctx.accounts.escrow_account.initializer_key),
         )?;
 
         Ok(())
@@ -52,7 +52,7 @@ pub mod anchor_escrow {
     pub fn escrow_exchange(
         ctx: Context<EscrowExchange>
     ) -> ProgramResult {
-        let (pda, _bump_seed) = Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
+        let (_pda, bump_seed) = Pubkey::find_program_address(&[ESCROW_PDA_SEED], ctx.program_id);
         let seeds = &[&ESCROW_PDA_SEED[..], &[bump_seed]];
 
         // step 1. { amount : x_in_amount, token : x }, program -> taker
@@ -71,7 +71,7 @@ pub mod anchor_escrow {
         token::set_authority(
             ctx.accounts.into_set_authority_context().with_signer(&[&seeds[..]]),
             ctx.accounts.escrow_account.x_in_amount,
-            Some(ctx.account.escrow_account.initializer_key),
+            Some(ctx.accounts.escrow_account.initializer_key),
         )?;
 
         Ok(())
@@ -120,8 +120,11 @@ pub struct EscrowAccount {
     pub y_out_amount: u64,
 }
 
-impl<'info> EscrowInit<'info> {
+impl EscrowAccount {
     pub const LEN: usize = 32 + 32 + 32 + 8 + 8;
+}
+
+impl<'info> EscrowInit<'info> {
     fn into_set_authority_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
     }
 }
