@@ -165,10 +165,27 @@ impl<'info> EscrowExchange<'info> {
         CpiContext::new(cpi_program, cpi_accounts);
     }
 
-    fn into_transfer_to_taker_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
+    fn into_transfer_to_taker_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.initializer_x_account.to_account_info().clone(),
+            to: self.taker_x_account.to_account_info().clone(),
+            authority: self.pda_account.clone(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        CpiContext::new(cpi_program, cpi_accounts)
     }
 
-    fn into_transfer_to_initializer_context(&self) -> CpiContext<'_, '_, '_, 'info, SetAuthority<'info>> {
+    fn into_transfer_to_initializer_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
+        let cpi_accounts = Transfer {
+            from: self.taker_y_account.to_account_info().clone(),
+            to: self
+                .initializer_y_account
+                .to_account_info()
+                .clone(),
+            authority: self.taker.clone(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        CpiContext::new(cpi_program, cpi_accounts)
     }
 }
 
