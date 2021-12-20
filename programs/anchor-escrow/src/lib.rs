@@ -93,6 +93,7 @@ pub struct EscrowInit<'info> {
     #[account(init, payer = initializer, space = 8 + EscrowAccount::LEN)]
     pub escrow_account: Account<'info, EscrowAccount>,
     pub system_program: Program<'info, System>, // system_program is neccessary here because of escrow_account annotation
+    pub token_program: Program<'info, Token>,
 }
 
 #[derive(Accounts)]
@@ -118,6 +119,8 @@ pub struct EscrowExchange<'info> {
     #[account(mut)]
     pub initializer_y_account: Account<'info, TokenAccount>,
     pub escrow_account: Account<'info, EscrowAccount>,
+    pub pda_account: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
 }
 
 #[account]
