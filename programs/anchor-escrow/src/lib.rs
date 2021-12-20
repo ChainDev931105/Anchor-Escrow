@@ -70,7 +70,7 @@ pub mod anchor_escrow {
         // step 3. set authority
         token::set_authority(
             ctx.accounts.into_set_authority_context().with_signer(&[&seeds[..]]),
-            ctx.accounts.escrow_account.x_in_amount,
+            AuthorityType::AccountOwner,
             Some(ctx.accounts.escrow_account.initializer_key),
         )?;
 
@@ -143,7 +143,7 @@ impl<'info> EscrowInit<'info> {
             current_authority: self.initializer.clone(),
         };
         let cpi_program = self.token_program.to_account_info();
-        CpiContext::new(cpi_program, cpi_accounts);
+        CpiContext::new(cpi_program, cpi_accounts)
     }
 }
 
@@ -154,7 +154,7 @@ impl<'info> EscrowCancel<'info> {
             current_authority: self.pda_account.clone(),
         };
         let cpi_program = self.token_program.to_account_info();
-        CpiContext::new(cpi_program, cpi_accounts);
+        CpiContext::new(cpi_program, cpi_accounts)
     }
 }
 
@@ -165,7 +165,7 @@ impl<'info> EscrowExchange<'info> {
             current_authority: self.pda_account.clone(),
         };
         let cpi_program = self.token_program.to_account_info();
-        CpiContext::new(cpi_program, cpi_accounts);
+        CpiContext::new(cpi_program, cpi_accounts)
     }
 
     fn into_transfer_to_taker_context(&self) -> CpiContext<'_, '_, '_, 'info, Transfer<'info>> {
