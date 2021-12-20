@@ -86,7 +86,7 @@ describe('anchor-escrow', () => {
     assert.ok(_takerTokenAccountB.amount.toNumber() == takerAmount);
   })
 
-  it ("Test 1. EscrowInit", async () => {
+  it("Test 1. EscrowInit", async () => {
     // call escrowInit
     await program.rpc.escrowInit(
       new BN(initializerAmount),
@@ -130,12 +130,52 @@ describe('anchor-escrow', () => {
         initializerTokenAccountA
       )
     );
-    console.log("hello 5");
     assert.ok(
       _escrowAccount.initializerYAccount.equals(
         initializerTokenAccountB
       )
     );
   })
+  
+  it("Test 2. EscrowExchange", async () => {
+    // call escrowExchange
+    console.log("hello");
+    await program.rpc.escrowExchange({
+      accounts: {
+        taker: provider.wallet.publicKey,
+        takerYAccount: takerTokenAccountB,
+        takerXAccount: takerTokenAccountA,
+        initializerXAccount: initializerTokenAccountA,
+        initializerYAccount: initializerTokenAccountB,
+        initializerMainAccount: provider.wallet.publicKey,
+        escrowAccount: escrowAccount.publicKey,
+        pdaAccount: pda,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      },
+    });
+    console.log("hello 0");
+
+    let _takerTokenAccountA = await mintA.getAccountInfo(takerTokenAccountA);
+    console.log("hello 1");
+    let _takerTokenAccountB = await mintB.getAccountInfo(takerTokenAccountB);
+    console.log("hello 2");
+    let _initializerTokenAccountA = await mintA.getAccountInfo(
+      initializerTokenAccountA
+    );
+    console.log("hello 3");
+    let _initializerTokenAccountB = await mintB.getAccountInfo(
+      initializerTokenAccountB
+    );
+
+    console.log("hello 4");
+
+    // Check that the initializer gets back ownership of their token account.
+    assert.ok(_takerTokenAccountA.owner.equals(provider.wallet.publicKey));
+
+    assert.ok(_takerTokenAccountA.amount.toNumber() == initializerAmount);
+    assert.ok(_initializerTokenAccountA.amount.toNumber() == 0);
+    assert.ok(_initializerTokenAccountB.amount.toNumber() == takerAmount);
+    assert.ok(_takerTokenAccountB.amount.toNumber() == 0);
+  });
 });
 
