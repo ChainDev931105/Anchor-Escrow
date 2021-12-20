@@ -139,7 +139,6 @@ describe('anchor-escrow', () => {
   
   it("Test 2. EscrowExchange", async () => {
     // call escrowExchange
-    console.log("hello");
     await program.rpc.escrowExchange({
       accounts: {
         taker: provider.wallet.publicKey,
@@ -153,21 +152,15 @@ describe('anchor-escrow', () => {
         tokenProgram: TOKEN_PROGRAM_ID,
       },
     });
-    console.log("hello 0");
 
     let _takerTokenAccountA = await mintA.getAccountInfo(takerTokenAccountA);
-    console.log("hello 1");
     let _takerTokenAccountB = await mintB.getAccountInfo(takerTokenAccountB);
-    console.log("hello 2");
     let _initializerTokenAccountA = await mintA.getAccountInfo(
       initializerTokenAccountA
     );
-    console.log("hello 3");
     let _initializerTokenAccountB = await mintB.getAccountInfo(
       initializerTokenAccountB
     );
-
-    console.log("hello 4");
 
     // Check that the initializer gets back ownership of their token account.
     assert.ok(_takerTokenAccountA.owner.equals(provider.wallet.publicKey));
@@ -176,6 +169,63 @@ describe('anchor-escrow', () => {
     assert.ok(_initializerTokenAccountA.amount.toNumber() == 0);
     assert.ok(_initializerTokenAccountB.amount.toNumber() == takerAmount);
     assert.ok(_takerTokenAccountB.amount.toNumber() == 0);
+  });
+
+  let escrow2 = Keypair.generate();
+
+  it("Test3. EscrowCancel", async () => {
+    // Put back tokens into initializer token A account.
+    await mintA.mintTo(
+      initializerTokenAccountA,
+      mintAuthority.publicKey,
+      [mintAuthority],
+      initializerAmount
+    );
+
+    await program.rpc.escrowInit(
+      new BN(initializerAmount),
+      new BN(takerAmount),
+      {
+        accounts: {
+          initializer: provider.wallet.publicKey,
+          initializerXAccount: initializerTokenAccountA,
+          initializerYAccount: initializerTokenAccountB,
+          escrowAccount: escrow2.publicKey,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        },
+        signers: [escrow2],
+      }
+    );
+
+    let _initializerTokenAccountA = await mintA.getAccountInfo(
+      initializerTokenAccountA
+    );
+
+    // Check that the new owner is the PDA.
+    assert.ok(_initializerTokenAccountA.owner.equals(pda));
+
+    // Cancel the escrow.
+    await program.rpc.escrowCancel({
+      accounts: {
+        initializer: provider.wallet.publicKey,
+        initializerXAccount: initializerTokenAccountA,
+        pdaAccount: pda,
+        escrowAccount: escrow2.publicKey,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      },
+    });
+
+    // Check the final owner should be the provider public key.
+    _initializerTokenAccountA = await mintA.getAccountInfo(
+      initializerTokenAccountA
+    );
+    assert.ok(
+      _initializerTokenAccountA.owner.equals(provider.wallet.publicKey)
+    );
+
+    // Check all the funds are still there.
+    assert.ok(_initializerTokenAccountA.amount.toNumber() == initializerAmount);
   });
 });
 
