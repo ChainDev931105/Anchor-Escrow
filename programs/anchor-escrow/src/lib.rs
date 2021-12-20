@@ -23,7 +23,7 @@ pub mod anchor_escrow {
         ctx.accounts.escrow_account.initializer_x_account = 
             *ctx.accounts.initializer_x_account.to_account_info().key;
         ctx.accounts.escrow_account.initializer_y_account = 
-            *ctx.accounts.initializer_x_account.to_account_info().key;
+            *ctx.accounts.initializer_y_account.to_account_info().key;
         ctx.accounts.escrow_account.x_in_amount = x_in_amount;
         ctx.accounts.escrow_account.y_out_amount = y_out_amount;
 

@@ -1,4 +1,5 @@
 import * as anchor from '@project-serum/anchor';
+import { Program, BN, IdlAccounts } from "@project-serum/anchor";
 import { PublicKey, Keypair, SystemProgram } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, Token } from "@solana/spl-token";
 import { assert } from "chai";
@@ -46,13 +47,14 @@ describe('anchor-escrow', () => {
     );
   }
 
-  it("Test 1. Initialise states", async () => {
+  it("Test 0. Initialise states", async () => {
     // Request an allocation of lamports to payer
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(payer.publicKey, 10000000000),
       "confirmed"
     );
 
+    // Generate Tokens and accounts
     mintA = await generateTokenMint();
     mintB = await generateTokenMint();
     
@@ -62,13 +64,13 @@ describe('anchor-escrow', () => {
     takerTokenAccountA = await mintA.createAccount(provider.wallet.publicKey);
     takerTokenAccountB = await mintB.createAccount(provider.wallet.publicKey);
 
+    // initial mints
     await mintA.mintTo(
       initializerTokenAccountA,
       mintAuthority.publicKey,
       [mintAuthority],
       initializerAmount
     );
-
     await mintB.mintTo(
       takerTokenAccountB,
       mintAuthority.publicKey,
@@ -76,13 +78,64 @@ describe('anchor-escrow', () => {
       takerAmount
     );
 
-    let _initializerTokenAccountA = await mintA.getAccountInfo(
-      initializerTokenAccountA
-    );
+    // check if mint is processed correctly
+    let _initializerTokenAccountA = await mintA.getAccountInfo(initializerTokenAccountA);
     let _takerTokenAccountB = await mintB.getAccountInfo(takerTokenAccountB);
 
     assert.ok(_initializerTokenAccountA.amount.toNumber() == initializerAmount);
     assert.ok(_takerTokenAccountB.amount.toNumber() == takerAmount);
+  })
+
+  it ("Test 1. EscrowInit", async () => {
+    // call escrowInit
+    await program.rpc.escrowInit(
+      new BN(initializerAmount),
+      new BN(takerAmount),
+      {
+        accounts: {
+          initializer: provider.wallet.publicKey,
+          initializerXAccount: initializerTokenAccountA,
+          initializerYAccount: initializerTokenAccountB,
+          escrowAccount: escrowAccount.publicKey,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        },
+        signers: [escrowAccount],
+      }
+    );
+    
+    // Get the PDA that is assigned authority to token account.
+    const [_pda, _nonce] = await PublicKey.findProgramAddress(
+      [Buffer.from(anchor.utils.bytes.utf8.encode("escrow_pda_seed"))], // this string should be matched with the one in lib.rs
+      program.programId
+    );
+
+    pda = _pda;
+
+    let _initializerTokenAccountA = await mintA.getAccountInfo(
+      initializerTokenAccountA
+    );
+
+    let _escrowAccount: EscrowAccount =
+      await program.account.escrowAccount.fetch(escrowAccount.publicKey);
+
+    // Check that the new owner is the PDA.
+    assert.ok(_initializerTokenAccountA.owner.equals(pda));
+    // Check that the values in the escrow account match what we expect.
+    assert.ok(_escrowAccount.initializerKey.equals(provider.wallet.publicKey));
+    assert.ok(_escrowAccount.xInAmount.toNumber() == initializerAmount);
+    assert.ok(_escrowAccount.yOutAmount.toNumber() == takerAmount);
+    assert.ok(
+      _escrowAccount.initializerXAccount.equals(
+        initializerTokenAccountA
+      )
+    );
+    console.log("hello 5");
+    assert.ok(
+      _escrowAccount.initializerYAccount.equals(
+        initializerTokenAccountB
+      )
+    );
   })
 });
 
